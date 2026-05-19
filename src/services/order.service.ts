@@ -1,10 +1,21 @@
 import { Order, OrderStatus, OrderPricing, StatusEvent } from '@/types';
-import { generateId, calculatePricing } from '@/lib/utils';
+import { getClientDb } from '@/lib/firebase/client';
+import { calculatePricing } from '@/lib/utils';
 import { getPaymentProvider } from '@/lib/payment';
 import { bookSlot, releaseSlot } from './slot.service';
-
-// ─── In-memory order store ──────────────────────────────────────────
-const ordersStore = new Map<string, Order>();
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  getDocs,
+  getDoc,
+  setDoc,
+  updateDoc,
+  doc,
+  Timestamp,
+  arrayUnion,
+} from 'firebase/firestore';
 
 // ─── Create Order ───────────────────────────────────────────────────
 export async function createOrder(params: {
@@ -20,9 +31,13 @@ export async function createOrder(params: {
   endTime: string;
   mode: string;
 }): Promise<Order> {
+  const db = getClientDb();
   const pricing = calculatePricing(params.fee);
   const now = Date.now();
-  const id = generateId();
+
+  // Generate a new document reference (auto-ID)
+  const orderRef = doc(collection(db, 'orders'));
+  const id = orderRef.id;
 
   const order: Order = {
     id,
@@ -56,7 +71,26 @@ export async function createOrder(params: {
     completedAt: null,
   };
 
-  ordersStore.set(id, order);
+  await setDoc(orderRef, order);
+
+  // Write audit log
+  try {
+    const auditRef = doc(collection(db, 'auditLogs'));
+    await setDoc(auditRef, {
+      action: 'ORDER_CREATED',
+      actor: params.userId,
+      actorRole: 'user',
+      targetId: id,
+      targetType: 'order',
+      before: null,
+      after: { status: 'pending', total: pricing.total },
+      timestamp: Timestamp.now(),
+    });
+  } catch (e) {
+    // Audit log failure should not block the order
+    console.warn('Audit log write failed:', e);
+  }
+
   return order;
 }
 
@@ -66,13 +100,21 @@ export async function updateOrderPatient(
   userId: string,
   patient: Order['patient']
 ): Promise<Order | null> {
-  const order = ordersStore.get(orderId);
-  if (!order || order.userId !== userId || order.status !== 'pending') return null;
+  const db = getClientDb();
+  const orderRef = doc(db, 'orders', orderId);
+  const orderSnap = await getDoc(orderRef);
 
-  order.patient = patient;
-  order.updatedAt = Date.now();
-  ordersStore.set(orderId, order);
-  return order;
+  if (!orderSnap.exists()) return null;
+  const orderData = orderSnap.data() as Order;
+
+  if (orderData.userId !== userId || orderData.status !== 'pending') return null;
+
+  await updateDoc(orderRef, {
+    patient,
+    updatedAt: Date.now(),
+  });
+
+  return { ...orderData, patient, updatedAt: Date.now() };
 }
 
 // ─── Process Payment ────────────────────────────────────────────────
@@ -81,14 +123,19 @@ export async function processPayment(
   userId: string,
   method = 'mock'
 ): Promise<{ success: boolean; paymentId?: string; error?: string }> {
-  const order = ordersStore.get(orderId);
-  if (!order) return { success: false, error: 'ORDER_NOT_FOUND' };
+  const db = getClientDb();
+  const orderRef = doc(db, 'orders', orderId);
+  const orderSnap = await getDoc(orderRef);
+
+  if (!orderSnap.exists()) return { success: false, error: 'ORDER_NOT_FOUND' };
+  const order = orderSnap.data() as Order;
+
   if (order.userId !== userId) return { success: false, error: 'FORBIDDEN' };
   if (order.status !== 'pending') return { success: false, error: 'INVALID_STATE' };
 
   const provider = getPaymentProvider();
 
-  // Initiate payment
+  // 1. Initiate payment
   const transaction = await provider.initiate({
     amount: order.pricing.total,
     currency: 'INR',
@@ -97,20 +144,45 @@ export async function processPayment(
     method,
   });
 
-  // Verify payment (mock always succeeds)
+  // 2. Write payment record (initiated)
+  const paymentRef = doc(collection(db, 'payments'));
+  await setDoc(paymentRef, {
+    id: paymentRef.id,
+    orderId,
+    userId,
+    provider: provider.name,
+    providerTransactionId: transaction.id,
+    amount: order.pricing.total,
+    currency: 'INR',
+    status: 'initiated',
+    method,
+    metadata: {},
+    initiatedAt: Date.now(),
+    completedAt: null,
+    refundedAt: null,
+    refundAmount: null,
+  });
+
+  // 3. Verify payment (mock always succeeds)
   const verified = await provider.verify(transaction.id, { amount: order.pricing.total });
 
   if (!verified.success) {
-    // Transition to failed
-    order.status = 'failed';
-    order.statusHistory.push({
+    // ── Payment failed ──
+    await updateDoc(orderRef, {
       status: 'failed',
-      timestamp: Date.now(),
-      actor: 'system',
-      reason: 'Payment failed',
+      updatedAt: Date.now(),
+      statusHistory: arrayUnion({
+        status: 'failed',
+        timestamp: Date.now(),
+        actor: 'system',
+        reason: 'Payment failed',
+      }),
     });
-    order.updatedAt = Date.now();
-    ordersStore.set(orderId, order);
+
+    await updateDoc(paymentRef, {
+      status: 'failed',
+      completedAt: Date.now(),
+    });
 
     // Release slot lock
     await releaseSlot(order.slotId, userId);
@@ -118,22 +190,64 @@ export async function processPayment(
     return { success: false, error: 'PAYMENT_FAILED' };
   }
 
-  // Payment succeeded → confirm booking
-  order.status = 'confirmed';
-  order.paymentId = transaction.id;
-  order.statusHistory.push({
+  // ── Payment succeeded ──
+  // 4. Update order → confirmed
+  await updateDoc(orderRef, {
     status: 'confirmed',
-    timestamp: Date.now(),
-    actor: userId,
-    reason: null,
+    paymentId: paymentRef.id,
+    updatedAt: Date.now(),
+    statusHistory: arrayUnion({
+      status: 'confirmed',
+      timestamp: Date.now(),
+      actor: userId,
+      reason: null,
+    }),
   });
-  order.updatedAt = Date.now();
-  ordersStore.set(orderId, order);
 
-  // Book the slot
+  // 5. Update payment → success
+  await updateDoc(paymentRef, {
+    status: 'success',
+    completedAt: Date.now(),
+  });
+
+  // 6. Book the slot (locked → booked)
   await bookSlot(order.slotId, userId, orderId);
 
-  return { success: true, paymentId: transaction.id };
+  // 7. Audit log
+  try {
+    const auditRef = doc(collection(db, 'auditLogs'));
+    await setDoc(auditRef, {
+      action: 'PAYMENT_CONFIRMED',
+      actor: userId,
+      actorRole: 'user',
+      targetId: orderId,
+      targetType: 'order',
+      before: { status: 'pending' },
+      after: { status: 'confirmed', paymentId: paymentRef.id },
+      timestamp: Timestamp.now(),
+    });
+  } catch (e) {
+    console.warn('Audit log write failed:', e);
+  }
+
+  // 8. Create notification
+  try {
+    const notifRef = doc(collection(db, 'notifications'));
+    await setDoc(notifRef, {
+      id: notifRef.id,
+      userId,
+      type: 'booking_confirmed',
+      title: 'Booking Confirmed!',
+      body: `Your appointment with Dr. ${order.doctor.name} on ${order.slot.date} at ${order.slot.startTime} is confirmed.`,
+      data: { orderId },
+      isRead: false,
+      createdAt: Date.now(),
+    });
+  } catch (e) {
+    console.warn('Notification write failed:', e);
+  }
+
+  return { success: true, paymentId: paymentRef.id };
 }
 
 // ─── Cancel Order ───────────────────────────────────────────────────
@@ -142,8 +256,13 @@ export async function cancelOrder(
   userId: string,
   reason: string
 ): Promise<{ success: boolean; refundEligible: boolean; error?: string }> {
-  const order = ordersStore.get(orderId);
-  if (!order) return { success: false, refundEligible: false, error: 'ORDER_NOT_FOUND' };
+  const db = getClientDb();
+  const orderRef = doc(db, 'orders', orderId);
+  const orderSnap = await getDoc(orderRef);
+
+  if (!orderSnap.exists()) return { success: false, refundEligible: false, error: 'ORDER_NOT_FOUND' };
+  const order = orderSnap.data() as Order;
+
   if (order.userId !== userId) return { success: false, refundEligible: false, error: 'FORBIDDEN' };
 
   if (!['pending', 'confirmed', 'scheduled'].includes(order.status)) {
@@ -152,31 +271,63 @@ export async function cancelOrder(
 
   const wasConfirmed = order.status === 'confirmed' || order.status === 'scheduled';
 
-  order.status = 'cancelled';
-  order.cancellationReason = reason;
-  order.cancelledBy = 'user';
-  order.statusHistory.push({
+  await updateDoc(orderRef, {
     status: 'cancelled',
-    timestamp: Date.now(),
-    actor: userId,
-    reason,
+    cancellationReason: reason,
+    cancelledBy: 'user',
+    updatedAt: Date.now(),
+    statusHistory: arrayUnion({
+      status: 'cancelled',
+      timestamp: Date.now(),
+      actor: userId,
+      reason,
+    }),
   });
-  order.updatedAt = Date.now();
-  ordersStore.set(orderId, order);
 
   // Release slot
   await releaseSlot(order.slotId, userId);
+
+  // Notification
+  try {
+    const notifRef = doc(collection(db, 'notifications'));
+    await setDoc(notifRef, {
+      id: notifRef.id,
+      userId,
+      type: 'cancellation',
+      title: 'Booking Cancelled',
+      body: `Your appointment with Dr. ${order.doctor.name} has been cancelled.`,
+      data: { orderId },
+      isRead: false,
+      createdAt: Date.now(),
+    });
+  } catch (e) {
+    console.warn('Notification write failed:', e);
+  }
 
   return { success: true, refundEligible: wasConfirmed };
 }
 
 // ─── Get User Orders ────────────────────────────────────────────────
 export async function getUserOrders(userId: string): Promise<Order[]> {
-  const orders: Order[] = [];
-  ordersStore.forEach((order) => {
-    if (order.userId === userId) orders.push(order);
-  });
-  return orders.sort((a, b) => b.createdAt - a.createdAt);
+  const db = getClientDb();
+  const ordersRef = collection(db, 'orders');
+
+  // Try with ordering (needs composite index: userId + createdAt desc)
+  try {
+    const q = query(
+      ordersRef,
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => ({ ...d.data(), id: d.id })) as Order[];
+  } catch (err) {
+    // Fallback: without ordering if index doesn't exist yet
+    const q = query(ordersRef, where('userId', '==', userId));
+    const snapshot = await getDocs(q);
+    const orders = snapshot.docs.map((d) => ({ ...d.data(), id: d.id })) as Order[];
+    return orders.sort((a, b) => b.createdAt - a.createdAt);
+  }
 }
 
 // ─── Get Order By ID ────────────────────────────────────────────────
@@ -184,25 +335,38 @@ export async function getOrderById(
   orderId: string,
   userId: string
 ): Promise<Order | null> {
-  const order = ordersStore.get(orderId);
-  if (!order || order.userId !== userId) return null;
-  return order;
+  const db = getClientDb();
+  const orderRef = doc(db, 'orders', orderId);
+  const orderSnap = await getDoc(orderRef);
+
+  if (!orderSnap.exists()) return null;
+  const order = orderSnap.data() as Order;
+
+  // Only return if user owns this order
+  if (order.userId !== userId) return null;
+  return { ...order, id: orderSnap.id };
 }
 
-// ─── Complete Order (for demo) ──────────────────────────────────────
+// ─── Complete Order (for demo/admin) ────────────────────────────────
 export async function completeOrder(orderId: string): Promise<boolean> {
-  const order = ordersStore.get(orderId);
-  if (!order) return false;
+  const db = getClientDb();
+  const orderRef = doc(db, 'orders', orderId);
 
-  order.status = 'completed';
-  order.completedAt = Date.now();
-  order.statusHistory.push({
-    status: 'completed',
-    timestamp: Date.now(),
-    actor: 'system',
-    reason: 'Appointment completed',
-  });
-  order.updatedAt = Date.now();
-  ordersStore.set(orderId, order);
-  return true;
+  try {
+    await updateDoc(orderRef, {
+      status: 'completed',
+      completedAt: Date.now(),
+      updatedAt: Date.now(),
+      statusHistory: arrayUnion({
+        status: 'completed',
+        timestamp: Date.now(),
+        actor: 'system',
+        reason: 'Appointment completed',
+      }),
+    });
+    return true;
+  } catch (err) {
+    console.error('completeOrder error:', err);
+    return false;
+  }
 }

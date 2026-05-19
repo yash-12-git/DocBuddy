@@ -1,20 +1,17 @@
-import { DoctorSlot, SlotStatus } from '@/types';
-import { SEED_DOCTORS, generateSeedSlots } from '@/lib/seed-data';
+import { DoctorSlot } from '@/types';
+import { getClientDb } from '@/lib/firebase/client';
 import { getTimeCategory } from '@/lib/utils';
-
-// ─── In-memory slot store ───────────────────────────────────────────
-const slotsStore = new Map<string, DoctorSlot>();
-
-// Initialize with seed data
-SEED_DOCTORS.forEach((doc) => {
-  const slots = generateSeedSlots(doc.uid, doc.consultation.duration);
-  slots.forEach((slot) => {
-    slotsStore.set(slot.id, {
-      ...slot,
-      createdAt: { toMillis: () => Date.now() } as any,
-    } as DoctorSlot);
-  });
-});
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+  runTransaction,
+  Timestamp,
+  updateDoc,
+} from 'firebase/firestore';
 
 export interface GroupedSlots {
   morning: DoctorSlot[];
@@ -27,26 +24,42 @@ export async function getAvailableSlots(
   doctorId: string,
   date: string
 ): Promise<DoctorSlot[]> {
-  const now = Date.now();
+  const db = getClientDb();
+  const slotsRef = collection(db, 'doctorSlots');
+  const now = Timestamp.now();
+
+  // Query all slots for this doctor + date
+  const q = query(
+    slotsRef,
+    where('doctorId', '==', doctorId),
+    where('date', '==', date)
+  );
+
+  const snapshot = await getDocs(q);
   const slots: DoctorSlot[] = [];
 
-  slotsStore.forEach((slot) => {
-    if (slot.doctorId !== doctorId || slot.date !== date) return;
+  snapshot.docs.forEach((d) => {
+    const data = d.data();
+    const slot = { ...data, id: d.id } as DoctorSlot;
 
-    // Consider slot available if:
-    // 1. Status is 'available', OR
-    // 2. Status is 'locked' but lock has expired
-    if (
-      slot.status === 'available' ||
-      (slot.status === 'locked' && slot.lockExpiry && slot.lockExpiry.toMillis() < now)
-    ) {
+    // Available if:
+    // 1. status === 'available', OR
+    // 2. status === 'locked' but lock has expired
+    const lockExpiry = data.lockExpiry as Timestamp | null;
+    const isExpiredLock =
+      slot.status === 'locked' &&
+      lockExpiry &&
+      lockExpiry.toMillis() < Date.now();
+
+    if (slot.status === 'available' || isExpiredLock) {
       slots.push(slot);
     }
   });
 
+  // Sort by time
   slots.sort((a, b) => {
-    const aMin = parseInt(a.startTime.replace(':', ''));
-    const bMin = parseInt(b.startTime.replace(':', ''));
+    const aMin = parseInt(a.startTime.replace(':', ''), 10);
+    const bMin = parseInt(b.startTime.replace(':', ''), 10);
     return aMin - bMin;
   });
 
@@ -75,83 +88,142 @@ export async function getSlotCount(doctorId: string, date: string): Promise<numb
   return slots.length;
 }
 
-// ─── Lock Slot (Atomic in production via Firestore Transaction) ─────
+// ─── Lock Slot (Firestore Transaction — atomic) ─────────────────────
+// This is the critical race-condition prevention logic.
+// runTransaction guarantees that the read + write is atomic:
+// if another user modifies the slot between our read and write,
+// the transaction retries automatically.
 export async function lockSlot(
   slotId: string,
   userId: string
 ): Promise<{ success: boolean; lockExpiry: number; error?: string }> {
-  const slot = slotsStore.get(slotId);
+  const db = getClientDb();
+  const slotRef = doc(db, 'doctorSlots', slotId);
 
-  if (!slot) {
-    return { success: false, lockExpiry: 0, error: 'SLOT_NOT_FOUND' };
+  try {
+    const result = await runTransaction(db, async (transaction) => {
+      const slotDoc = await transaction.get(slotRef);
+
+      if (!slotDoc.exists()) {
+        throw new Error('SLOT_NOT_FOUND');
+      }
+
+      const data = slotDoc.data();
+      const now = Date.now();
+      const lockExpiryTs = data.lockExpiry as Timestamp | null;
+
+      // Already booked → reject
+      if (data.status === 'booked') {
+        throw new Error('SLOT_ALREADY_BOOKED');
+      }
+
+      // Currently locked by someone else and lock hasn't expired → reject
+      if (
+        data.status === 'locked' &&
+        lockExpiryTs &&
+        lockExpiryTs.toMillis() > now
+      ) {
+        if (data.lockedBy === userId) {
+          // Same user → extend lock
+          const newExpiry = Timestamp.fromMillis(now + 10 * 60 * 1000);
+          transaction.update(slotRef, { lockExpiry: newExpiry });
+          return { lockExpiry: newExpiry.toMillis() };
+        }
+        throw new Error('SLOT_LOCKED_BY_ANOTHER');
+      }
+
+      // Available (or expired lock) → lock it
+      const lockExpiry = Timestamp.fromMillis(now + 10 * 60 * 1000);
+
+      transaction.update(slotRef, {
+        status: 'locked',
+        lockExpiry,
+        lockedBy: userId,
+      });
+
+      return { lockExpiry: lockExpiry.toMillis() };
+    });
+
+    return { success: true, lockExpiry: result.lockExpiry };
+  } catch (err: any) {
+    const message = err.message || 'UNKNOWN_ERROR';
+    return { success: false, lockExpiry: 0, error: message };
   }
-
-  const now = Date.now();
-
-  // Check if slot is available (or lock expired)
-  if (slot.status === 'booked') {
-    return { success: false, lockExpiry: 0, error: 'SLOT_ALREADY_BOOKED' };
-  }
-
-  if (
-    slot.status === 'locked' &&
-    slot.lockExpiry &&
-    slot.lockExpiry.toMillis() > now
-  ) {
-    if (slot.lockedBy === userId) {
-      // Already locked by this user — extend
-      const lockExpiry = now + 10 * 60 * 1000;
-      slot.lockExpiry = { toMillis: () => lockExpiry } as any;
-      return { success: true, lockExpiry };
-    }
-    return { success: false, lockExpiry: 0, error: 'SLOT_LOCKED_BY_ANOTHER' };
-  }
-
-  // Lock it
-  const lockExpiry = now + 10 * 60 * 1000; // 10 minutes
-  slot.status = 'locked';
-  slot.lockExpiry = { toMillis: () => lockExpiry } as any;
-  slot.lockedBy = userId;
-  slotsStore.set(slotId, slot);
-
-  return { success: true, lockExpiry };
 }
 
-// ─── Book Slot (after payment) ──────────────────────────────────────
+// ─── Book Slot (after payment confirmation) ─────────────────────────
 export async function bookSlot(
   slotId: string,
   userId: string,
   orderId: string
 ): Promise<boolean> {
-  const slot = slotsStore.get(slotId);
-  if (!slot) return false;
+  const db = getClientDb();
+  const slotRef = doc(db, 'doctorSlots', slotId);
 
-  // Verify lock owner
-  if (slot.lockedBy !== userId) return false;
+  try {
+    await runTransaction(db, async (transaction) => {
+      const slotDoc = await transaction.get(slotRef);
+      if (!slotDoc.exists()) throw new Error('SLOT_NOT_FOUND');
 
-  slot.status = 'booked';
-  slot.bookedBy = userId;
-  slot.orderId = orderId;
-  slot.lockExpiry = null;
-  slotsStore.set(slotId, slot);
+      const data = slotDoc.data();
 
-  return true;
+      // Must be locked by this user
+      if (data.lockedBy !== userId) {
+        throw new Error('NOT_LOCKED_BY_USER');
+      }
+
+      transaction.update(slotRef, {
+        status: 'booked',
+        bookedBy: userId,
+        orderId,
+        lockExpiry: null,
+      });
+    });
+    return true;
+  } catch (err) {
+    console.error('bookSlot error:', err);
+    return false;
+  }
 }
 
 // ─── Release Slot Lock ──────────────────────────────────────────────
-export async function releaseSlot(slotId: string, userId: string): Promise<boolean> {
-  const slot = slotsStore.get(slotId);
-  if (!slot || slot.lockedBy !== userId) return false;
+export async function releaseSlot(
+  slotId: string,
+  userId: string
+): Promise<boolean> {
+  const db = getClientDb();
+  const slotRef = doc(db, 'doctorSlots', slotId);
 
-  slot.status = 'available';
-  slot.lockedBy = null;
-  slot.lockExpiry = null;
-  slotsStore.set(slotId, slot);
+  try {
+    await runTransaction(db, async (transaction) => {
+      const slotDoc = await transaction.get(slotRef);
+      if (!slotDoc.exists()) return;
 
-  return true;
+      const data = slotDoc.data();
+
+      // Only release if locked by this user
+      if (data.lockedBy !== userId) return;
+      if (data.status !== 'locked') return;
+
+      transaction.update(slotRef, {
+        status: 'available',
+        lockedBy: null,
+        lockExpiry: null,
+      });
+    });
+    return true;
+  } catch (err) {
+    console.error('releaseSlot error:', err);
+    return false;
+  }
 }
 
 // ─── Get Slot By ID ─────────────────────────────────────────────────
 export async function getSlotById(slotId: string): Promise<DoctorSlot | null> {
-  return slotsStore.get(slotId) || null;
+  const db = getClientDb();
+  const slotRef = doc(db, 'doctorSlots', slotId);
+  const slotDoc = await getDoc(slotRef);
+
+  if (!slotDoc.exists()) return null;
+  return { ...slotDoc.data(), id: slotDoc.id } as DoctorSlot;
 }

@@ -249,6 +249,13 @@ export default function Navbar() {
                     Profile
                   </Link>
                   <div className="divider" />
+                  <Link href="/portal/dashboard" onClick={() => setShowDropdown(false)}>
+                    🩺 Doctor Portal
+                  </Link>
+                  <Link href="/admin/dashboard" onClick={() => setShowDropdown(false)}>
+                    🛡 Admin Panel
+                  </Link>
+                  <div className="divider" />
                   <button
                     onClick={() => {
                       setShowDropdown(false);
