@@ -29,14 +29,15 @@ const overlayStyles = css`
 
   .drawer {
     position: relative;
-    width: 420px;
-    max-width: 90vw;
+    width: 100%;
     background: white;
     height: 100%;
     display: flex;
     flex-direction: column;
     animation: slideIn 250ms ease;
     box-shadow: ${theme.shadows.xl};
+
+    @media (min-width: 480px) { width: 420px; }
   }
 
   @keyframes slideIn {

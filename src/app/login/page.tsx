@@ -6,14 +6,14 @@ import { theme } from '@/lib/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoginSchema, RegisterSchema } from '@/schemas';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const pageStyles = css`
-  min-height: calc(100vh - 64px);
+  min-height: calc(100dvh - 56px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: ${theme.spacing.xl};
+  padding: ${theme.spacing.base};
   background: linear-gradient(135deg, ${theme.colors.primaryBg} 0%, white 100%);
 
   .auth-card {
@@ -23,179 +23,91 @@ const pageStyles = css`
     border-radius: ${theme.radii.xl};
     box-shadow: ${theme.shadows.lg};
     border: 1px solid ${theme.colors.border};
-    padding: ${theme.spacing['2xl']};
+    padding: ${theme.spacing.lg};
+
+    @media (min-width: 768px) {
+      padding: ${theme.spacing['2xl']};
+    }
 
     .logo {
       text-align: center;
       margin-bottom: ${theme.spacing.xl};
-
       .icon {
-        width: 48px;
-        height: 48px;
+        width: 44px; height: 44px;
         background: ${theme.colors.primary};
         border-radius: ${theme.radii.lg};
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 24px;
-        margin-bottom: ${theme.spacing.md};
+        display: inline-flex; align-items: center; justify-content: center;
+        color: white; font-size: 22px;
+        margin-bottom: ${theme.spacing.sm};
       }
-
-      h1 {
-        font-family: ${theme.fonts.heading};
-        font-size: ${theme.fontSizes['2xl']};
-        font-weight: 700;
-        margin: 0;
-      }
-
-      p {
-        color: ${theme.colors.textSecondary};
-        font-size: ${theme.fontSizes.sm};
-        margin-top: 4px;
-      }
+      h1 { font-family: ${theme.fonts.heading}; font-size: ${theme.fontSizes['2xl']}; font-weight: 700; margin: 0; }
+      p { color: ${theme.colors.textSecondary}; font-size: ${theme.fontSizes.sm}; margin-top: 4px; }
     }
 
     .tabs {
-      display: flex;
-      gap: 0;
+      display: flex; gap: 0;
       margin-bottom: ${theme.spacing.xl};
       background: ${theme.colors.bgSecondary};
-      border-radius: ${theme.radii.md};
-      padding: 3px;
-
+      border-radius: ${theme.radii.md}; padding: 3px;
       button {
-        flex: 1;
-        padding: 10px;
-        border: none;
-        background: transparent;
-        border-radius: ${theme.radii.sm};
-        font-size: ${theme.fontSizes.sm};
-        font-weight: 500;
-        cursor: pointer;
-        transition: all ${theme.transitions.fast};
-        color: ${theme.colors.textSecondary};
-
-        &.active {
-          background: white;
-          color: ${theme.colors.text};
-          box-shadow: ${theme.shadows.sm};
-          font-weight: 600;
-        }
+        flex: 1; padding: 10px; border: none; background: transparent;
+        border-radius: ${theme.radii.sm}; font-size: ${theme.fontSizes.sm};
+        font-weight: 500; color: ${theme.colors.textSecondary};
+        transition: all var(--transition-fast);
+        &.active { background: white; color: ${theme.colors.text}; box-shadow: ${theme.shadows.sm}; font-weight: 600; }
       }
     }
 
     .form-group {
       margin-bottom: ${theme.spacing.base};
-
-      label {
-        display: block;
-        font-size: ${theme.fontSizes.sm};
-        font-weight: 500;
-        color: ${theme.colors.text};
-        margin-bottom: 6px;
-      }
-
+      label { display: block; font-size: ${theme.fontSizes.sm}; font-weight: 500; margin-bottom: 6px; }
       input {
-        width: 100%;
-        padding: 11px 14px;
-        border: 1.5px solid ${theme.colors.border};
-        border-radius: ${theme.radii.md};
-        font-size: ${theme.fontSizes.base};
-        outline: none;
-        transition: border-color ${theme.transitions.fast};
-
-        &:focus {
-          border-color: ${theme.colors.primary};
-        }
+        width: 100%; padding: 11px 14px;
+        border: 1.5px solid ${theme.colors.border}; border-radius: ${theme.radii.md};
+        font-size: 16px; outline: none;
+        transition: border-color var(--transition-fast);
+        &:focus { border-color: ${theme.colors.primary}; }
       }
-
-      .field-error {
-        color: ${theme.colors.error};
-        font-size: 12px;
-        margin-top: 4px;
-      }
+      .field-error { color: ${theme.colors.error}; font-size: 12px; margin-top: 4px; }
     }
 
     .submit-btn {
-      width: 100%;
-      padding: 13px;
-      background: ${theme.colors.primary};
-      color: white;
-      border: none;
-      border-radius: ${theme.radii.md};
-      font-size: ${theme.fontSizes.base};
-      font-weight: 600;
-      cursor: pointer;
-      transition: all ${theme.transitions.fast};
+      width: 100%; padding: 13px;
+      background: ${theme.colors.primary}; color: white;
+      border: none; border-radius: ${theme.radii.md};
+      font-size: ${theme.fontSizes.base}; font-weight: 600;
+      transition: all var(--transition-fast);
       margin-top: ${theme.spacing.base};
-
       &:hover { background: ${theme.colors.primaryDark}; }
       &:disabled { opacity: 0.6; cursor: not-allowed; }
     }
 
     .divider {
-      display: flex;
-      align-items: center;
-      gap: ${theme.spacing.base};
+      display: flex; align-items: center; gap: ${theme.spacing.base};
       margin: ${theme.spacing.lg} 0;
-      color: ${theme.colors.textMuted};
-      font-size: ${theme.fontSizes.xs};
-
-      &::before, &::after {
-        content: '';
-        flex: 1;
-        height: 1px;
-        background: ${theme.colors.border};
-      }
+      color: ${theme.colors.textMuted}; font-size: ${theme.fontSizes.xs};
+      &::before, &::after { content: ''; flex: 1; height: 1px; background: ${theme.colors.border}; }
     }
 
     .google-btn {
-      width: 100%;
-      padding: 12px;
-      border: 1.5px solid ${theme.colors.border};
-      border-radius: ${theme.radii.md};
-      background: white;
-      font-size: ${theme.fontSizes.sm};
-      font-weight: 500;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      transition: all ${theme.transitions.fast};
-
-      &:hover {
-        border-color: ${theme.colors.textMuted};
-        background: ${theme.colors.bgSecondary};
-      }
+      width: 100%; padding: 12px;
+      border: 1.5px solid ${theme.colors.border}; border-radius: ${theme.radii.md};
+      background: white; font-size: ${theme.fontSizes.sm}; font-weight: 500;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      transition: all var(--transition-fast);
+      &:hover { border-color: ${theme.colors.textMuted}; background: ${theme.colors.bgSecondary}; }
     }
 
     .error-banner {
-      background: ${theme.colors.errorBg};
-      color: ${theme.colors.error};
-      padding: 10px 14px;
-      border-radius: ${theme.radii.md};
-      font-size: ${theme.fontSizes.sm};
-      margin-bottom: ${theme.spacing.base};
-      text-align: center;
-    }
-
-    .demo-note {
-      margin-top: ${theme.spacing.lg};
-      padding: ${theme.spacing.base};
-      background: ${theme.colors.infoBg};
-      border-radius: ${theme.radii.md};
-      font-size: ${theme.fontSizes.xs};
-      color: ${theme.colors.info};
-      text-align: center;
-      line-height: 1.5;
+      background: ${theme.colors.errorBg}; color: ${theme.colors.error};
+      padding: 10px 14px; border-radius: ${theme.radii.md};
+      font-size: ${theme.fontSizes.sm}; margin-bottom: ${theme.spacing.base}; text-align: center;
     }
   }
 `;
 
 export default function LoginPage() {
-  const { signIn, signUp, signInWithGoogle, error, clearError, loading } = useAuth();
+  const { signIn, signUp, signInWithGoogle, error, clearError, loading, user } = useAuth();
   const router = useRouter();
 
   const [tab, setTab] = useState<'login' | 'register'>('login');
@@ -203,6 +115,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  // Auth guard: redirect if already logged in
+  useEffect(() => {
+    if (user && !loading) {
+      router.replace('/');
+    }
+  }, [user, loading, router]);
+
+  if (user) return null;
 
   const switchTab = (t: 'login' | 'register') => {
     setTab(t);
@@ -259,12 +180,8 @@ export default function LoginPage() {
         </div>
 
         <div className="tabs">
-          <button className={tab === 'login' ? 'active' : ''} onClick={() => switchTab('login')}>
-            Sign In
-          </button>
-          <button className={tab === 'register' ? 'active' : ''} onClick={() => switchTab('register')}>
-            Register
-          </button>
+          <button className={tab === 'login' ? 'active' : ''} onClick={() => switchTab('login')}>Sign In</button>
+          <button className={tab === 'register' ? 'active' : ''} onClick={() => switchTab('register')}>Register</button>
         </div>
 
         {error && <div className="error-banner">{error}</div>}
@@ -273,38 +190,20 @@ export default function LoginPage() {
           {tab === 'register' && (
             <div className="form-group">
               <label>Full Name</label>
-              <input
-                type="text"
-                placeholder="John Doe"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
+              <input type="text" placeholder="John Doe" value={name} onChange={(e) => setName(e.target.value)} />
               {fieldErrors.displayName && <div className="field-error">{fieldErrors.displayName}</div>}
             </div>
           )}
-
           <div className="form-group">
             <label>Email</label>
-            <input
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+            <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
             {fieldErrors.email && <div className="field-error">{fieldErrors.email}</div>}
           </div>
-
           <div className="form-group">
             <label>Password</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
             {fieldErrors.password && <div className="field-error">{fieldErrors.password}</div>}
           </div>
-
           <button type="submit" className="submit-btn" disabled={loading}>
             {loading ? 'Please wait...' : tab === 'login' ? 'Sign In' : 'Create Account'}
           </button>
@@ -321,10 +220,6 @@ export default function LoginPage() {
           </svg>
           Continue with Google
         </button>
-
-        <div className="demo-note">
-          🧪 <strong>Demo Mode</strong> — No Firebase configured. Enter any email/password to sign in with a demo account.
-        </div>
       </div>
     </div>
   );

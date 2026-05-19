@@ -12,7 +12,9 @@ import { useState, useMemo, Suspense } from 'react';
 const pageStyles = css`
   max-width: 1200px;
   margin: 0 auto;
-  padding: ${theme.spacing.xl} ${theme.spacing.lg};
+  padding: ${theme.spacing.lg} ${theme.spacing.base};
+
+  @media (min-width: 768px) { padding: ${theme.spacing.xl} ${theme.spacing.lg}; }
 
   .search-header {
     margin-bottom: ${theme.spacing.xl};
@@ -52,10 +54,19 @@ const pageStyles = css`
 
   .filters {
     display: flex;
-    gap: ${theme.spacing.md};
-    margin-bottom: ${theme.spacing.xl};
-    flex-wrap: wrap;
-    align-items: center;
+    gap: ${theme.spacing.sm};
+    margin-bottom: ${theme.spacing.lg};
+    overflow-x: auto;
+    padding-bottom: ${theme.spacing.sm};
+    -webkit-overflow-scrolling: touch;
+
+    @media (min-width: 768px) {
+      gap: ${theme.spacing.md};
+      margin-bottom: ${theme.spacing.xl};
+      flex-wrap: wrap;
+      overflow-x: visible;
+      padding-bottom: 0;
+    }
 
     select, .filter-btn {
       padding: 8px 16px;
@@ -94,8 +105,10 @@ const pageStyles = css`
 
   .results {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: ${theme.spacing.lg};
+    grid-template-columns: 1fr;
+    gap: ${theme.spacing.base};
+
+    @media (min-width: 640px) { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: ${theme.spacing.lg}; }
   }
 
   .no-results {
