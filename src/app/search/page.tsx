@@ -6,141 +6,267 @@ import { theme } from '@/lib/theme';
 import { useDoctorSearch, useSpecialties } from '@/hooks';
 import { SearchFilters, ConsultationMode } from '@/types';
 import DoctorCard from '@/components/doctors/DoctorCard';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useState, useMemo, Suspense } from 'react';
 
 const pageStyles = css`
   max-width: 1200px;
   margin: 0 auto;
-  padding: ${theme.spacing.lg} ${theme.spacing.base};
+  /* FIX: ensure page never causes body overflow */
+  padding: 16px 16px 80px;
+  box-sizing: border-box;
+  width: 100%;
+  overflow-x: hidden;
 
-  @media (min-width: 768px) { padding: ${theme.spacing.xl} ${theme.spacing.lg}; }
+  @media (min-width: 768px) {
+    padding: ${theme.spacing.xl} ${theme.spacing.lg} ${theme.spacing.xl};
+  }
 
+  /* ── Header ── */
   .search-header {
-    margin-bottom: ${theme.spacing.xl};
+    margin-bottom: 16px;
 
     h1 {
       font-family: ${theme.fonts.heading};
-      font-size: ${theme.fontSizes['2xl']};
-      font-weight: 700;
+      font-size: 22px; font-weight: 700;
+      margin: 0;
+      @media (min-width: 768px) { font-size: ${theme.fontSizes['2xl']}; }
     }
 
     .result-count {
       color: ${theme.colors.textSecondary};
-      font-size: ${theme.fontSizes.sm};
-      margin-top: 4px;
+      font-size: 13px; margin-top: 4px;
     }
   }
 
+  /* ── Search bar ── */
   .search-bar {
     display: flex;
     gap: 8px;
-    margin-bottom: ${theme.spacing.lg};
+    margin-bottom: 14px;
 
     input {
       flex: 1;
+      /* FIX: min-width: 0 prevents input from overflowing flex parent */
+      min-width: 0;
       padding: 12px 16px;
       border: 1.5px solid ${theme.colors.border};
-      border-radius: ${theme.radii.md};
-      font-size: ${theme.fontSizes.base};
+      border-radius: 12px;
+      font-size: 15px;
       outline: none;
-      transition: border-color ${theme.transitions.fast};
+      background: white;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      -webkit-appearance: none;
 
+      &::placeholder { color: ${theme.colors.textMuted}; }
       &:focus {
         border-color: ${theme.colors.primary};
+        box-shadow: 0 0 0 3px ${theme.colors.primary}18;
+      }
+    }
+
+    .search-submit {
+      flex-shrink: 0;
+      padding: 12px 18px;
+      background: ${theme.colors.primary}; color: white;
+      border: none; border-radius: 12px;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s ease;
+
+      &:hover { background: ${theme.colors.primaryDark}; }
+    }
+  }
+
+  /* ── Filter bar (mobile: horizontal scroll, desktop: wrap) ── */
+  .filter-bar {
+    margin-bottom: 14px;
+  }
+
+  /* Active filter summary pill (mobile only) */
+  .filter-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+
+    .active-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px;
+      background: ${theme.colors.primaryBg};
+      border: 1px solid ${theme.colors.primaryLight};
+      border-radius: 100px;
+      font-size: 12px; font-weight: 500; color: ${theme.colors.primary};
+
+      .remove { background: none; border: none; padding: 0; cursor: pointer;
+        font-size: 13px; line-height: 1; color: ${theme.colors.primary};
+        display: flex; align-items: center;
       }
     }
   }
 
-  .filters {
+  /* Scrollable filter chips row */
+  .filter-chips {
     display: flex;
-    gap: ${theme.spacing.sm};
-    margin-bottom: ${theme.spacing.lg};
+    gap: 8px;
     overflow-x: auto;
-    padding-bottom: ${theme.spacing.sm};
+    padding-bottom: 2px;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
 
     @media (min-width: 768px) {
-      gap: ${theme.spacing.md};
-      margin-bottom: ${theme.spacing.xl};
       flex-wrap: wrap;
       overflow-x: visible;
-      padding-bottom: 0;
     }
 
-    select, .filter-btn {
-      padding: 8px 16px;
+    .chip {
+      flex-shrink: 0;
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 8px 14px;
       border: 1.5px solid ${theme.colors.border};
-      border-radius: ${theme.radii.full};
+      border-radius: 100px;
       background: white;
-      font-size: ${theme.fontSizes.sm};
+      font-size: 13px; font-weight: 500;
       color: ${theme.colors.text};
       cursor: pointer;
-      transition: all ${theme.transitions.fast};
-      outline: none;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
 
-      &:hover, &:focus {
-        border-color: ${theme.colors.primary};
-      }
+      &:hover { border-color: ${theme.colors.primary}; color: ${theme.colors.primary}; }
 
       &.active {
-        background: ${theme.colors.primaryBg};
+        background: ${theme.colors.primary};
         border-color: ${theme.colors.primary};
-        color: ${theme.colors.primary};
-        font-weight: 500;
+        color: white;
       }
     }
 
-    .clear-btn {
-      background: none;
-      border: none;
-      color: ${theme.colors.error};
-      font-size: ${theme.fontSizes.xs};
+    /* Native select styled like chip */
+    .chip-select {
+      flex-shrink: 0;
+      -webkit-appearance: none;
+      appearance: none;
+      padding: 8px 30px 8px 14px;
+      border: 1.5px solid ${theme.colors.border};
+      border-radius: 100px;
+      background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center;
+      font-size: 13px; font-weight: 500;
+      color: ${theme.colors.text};
       cursor: pointer;
-      padding: 8px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      outline: none;
 
-      &:hover { text-decoration: underline; }
+      &:hover { border-color: ${theme.colors.primary}; }
+
+      &.active {
+        border-color: ${theme.colors.primary};
+        color: ${theme.colors.primary};
+        background-color: ${theme.colors.primaryBg};
+      }
     }
   }
 
+  /* ── Sort bar ── */
+  .sort-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+
+    .result-count-inline {
+      font-size: 13px; color: ${theme.colors.textSecondary};
+    }
+
+    .sort-select {
+      -webkit-appearance: none;
+      appearance: none;
+      padding: 7px 28px 7px 12px;
+      border: 1.5px solid ${theme.colors.border};
+      border-radius: 8px;
+      font-size: 13px;
+      background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 8px center;
+      outline: none;
+      color: ${theme.colors.text};
+
+      &:focus { border-color: ${theme.colors.primary}; }
+    }
+  }
+
+  /* ── Results grid ── */
   .results {
     display: grid;
     grid-template-columns: 1fr;
-    gap: ${theme.spacing.base};
+    gap: 12px;
 
-    @media (min-width: 640px) { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: ${theme.spacing.lg}; }
+    @media (min-width: 540px) {
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    @media (min-width: 768px) {
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: ${theme.spacing.lg};
+    }
   }
 
+  /* ── No results ── */
   .no-results {
     text-align: center;
-    padding: ${theme.spacing['3xl']};
+    padding: 60px 20px;
     color: ${theme.colors.textMuted};
 
-    .emoji { font-size: 48px; margin-bottom: ${theme.spacing.base}; }
-    h3 { font-size: ${theme.fontSizes.lg}; color: ${theme.colors.text}; }
-    p { margin-top: 8px; font-size: ${theme.fontSizes.sm}; }
+    .emoji { font-size: 48px; margin-bottom: 12px; }
+    h3 { font-size: 16px; color: ${theme.colors.text}; font-weight: 600; margin: 0; }
+    p { margin-top: 8px; font-size: 14px; }
+
+    .reset-btn {
+      margin-top: 20px;
+      padding: 10px 24px;
+      background: ${theme.colors.primary}; color: white;
+      border: none; border-radius: 100px;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer;
+    }
   }
 
-  .sort-bar {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: ${theme.spacing.base};
+  /* ── Loading skeleton ── */
+  .skeleton-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
 
-    select {
-      padding: 6px 12px;
-      border: 1px solid ${theme.colors.border};
-      border-radius: ${theme.radii.sm};
-      font-size: ${theme.fontSizes.xs};
-      background: white;
-      outline: none;
+    @media (min-width: 540px) {
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .skeleton-card {
+      height: 200px;
+      border-radius: ${theme.radii.xl};
+      background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
     }
   }
 `;
 
+const FEE_OPTIONS = [
+  { label: 'Under ₹500', value: 500 },
+  { label: 'Under ₹800', value: 800 },
+  { label: 'Under ₹1,000', value: 1000 },
+  { label: 'Under ₹1,500', value: 1500 },
+];
+
 function SearchContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const { data: specialties } = useSpecialties();
 
   const [query, setQuery] = useState(searchParams.get('q') || '');
   const [filters, setFilters] = useState<SearchFilters>({
@@ -151,12 +277,11 @@ function SearchContent() {
     sortOrder: 'desc',
   });
 
+  const { data: specialties } = useSpecialties();
+
   const searchFilters = useMemo(() => {
     const f: SearchFilters = { ...filters };
-    if (query) {
-      // Search query maps to specialty match
-      f.specialty = query;
-    }
+    if (query) f.specialty = query;
     return f;
   }, [filters, query]);
 
@@ -174,83 +299,104 @@ function SearchContent() {
     setFilters({ sortBy: 'rating', sortOrder: 'desc' });
   };
 
-  const hasActiveFilters = filters.specialty || filters.mode || filters.maxFee;
+  const hasActiveFilters = !!(filters.specialty || filters.mode || filters.maxFee || query);
+
+  const activePills: { label: string; onRemove: () => void }[] = [];
+  if (filters.mode) activePills.push({ label: filters.mode === 'online' ? '💻 Online' : '🏥 In-Clinic', onRemove: () => updateFilter('mode', filters.mode) });
+  if (filters.maxFee) activePills.push({ label: `Under ₹${filters.maxFee.toLocaleString()}`, onRemove: () => updateFilter('maxFee', filters.maxFee) });
+  if (filters.specialty && !query) activePills.push({ label: filters.specialty, onRemove: () => updateFilter('specialty', filters.specialty) });
 
   return (
     <div css={pageStyles}>
       <div className="search-header">
         <h1>Find Doctors</h1>
-        {doctors && (
-          <p className="result-count">
-            {doctors.length} doctor{doctors.length !== 1 ? 's' : ''} found
-            {filters.specialty ? ` for "${filters.specialty}"` : ''}
-          </p>
-        )}
       </div>
 
+      {/* Search input */}
       <div className="search-bar">
         <input
-          type="text"
-          placeholder="Search by specialty, doctor name..."
+          type="search"
+          placeholder="Search by specialty or doctor name..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          enterKeyHint="search"
         />
       </div>
 
-      <div className="filters">
-        <select
-          value={filters.specialty || ''}
-          onChange={(e) => updateFilter('specialty', e.target.value || undefined)}
-          className={filters.specialty ? 'active' : ''}
-        >
-          <option value="">All Specialties</option>
-          {specialties?.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-
-        <button
-          className={`filter-btn ${filters.mode === 'online' ? 'active' : ''}`}
-          onClick={() => updateFilter('mode', 'online')}
-        >
-          💻 Online
-        </button>
-
-        <button
-          className={`filter-btn ${filters.mode === 'offline' ? 'active' : ''}`}
-          onClick={() => updateFilter('mode', 'offline')}
-        >
-          🏥 In-Clinic
-        </button>
-
-        <select
-          value={filters.maxFee || ''}
-          onChange={(e) =>
-            updateFilter('maxFee', e.target.value ? Number(e.target.value) : undefined)
-          }
-          className={filters.maxFee ? 'active' : ''}
-        >
-          <option value="">Any Fee</option>
-          <option value="500">Under ₹500</option>
-          <option value="800">Under ₹800</option>
-          <option value="1000">Under ₹1,000</option>
-          <option value="1500">Under ₹1,500</option>
-        </select>
-
-        {hasActiveFilters && (
-          <button className="clear-btn" onClick={clearFilters}>
-            Clear filters
-          </button>
+      {/* Filter bar */}
+      <div className="filter-bar">
+        {/* Active filter pills (only when filters set) */}
+        {activePills.length > 0 && (
+          <div className="filter-summary">
+            {activePills.map((pill) => (
+              <span key={pill.label} className="active-pill">
+                {pill.label}
+                <button className="remove" onClick={pill.onRemove} aria-label={`Remove ${pill.label} filter`}>×</button>
+              </span>
+            ))}
+            {activePills.length > 1 && (
+              <button onClick={clearFilters} style={{ background: 'none', border: 'none', fontSize: 12, color: theme.colors.error, cursor: 'pointer', fontWeight: 500 }}>
+                Clear all
+              </button>
+            )}
+          </div>
         )}
+
+        {/* Scrollable chips */}
+        <div className="filter-chips">
+          {/* Specialty select */}
+          <select
+            className={`chip-select ${filters.specialty && !query ? 'active' : ''}`}
+            value={filters.specialty || ''}
+            onChange={(e) => setFilters((f) => ({ ...f, specialty: e.target.value || undefined }))}
+            aria-label="Filter by specialty"
+          >
+            <option value="">All Specialties</option>
+            {specialties?.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+
+          {/* Mode chips */}
+          <button
+            className={`chip ${filters.mode === 'online' ? 'active' : ''}`}
+            onClick={() => updateFilter('mode', 'online')}
+          >
+            💻 Online
+          </button>
+          <button
+            className={`chip ${filters.mode === 'offline' ? 'active' : ''}`}
+            onClick={() => updateFilter('mode', 'offline')}
+          >
+            🏥 In-Clinic
+          </button>
+
+          {/* Fee select */}
+          <select
+            className={`chip-select ${filters.maxFee ? 'active' : ''}`}
+            value={filters.maxFee || ''}
+            onChange={(e) => setFilters((f) => ({ ...f, maxFee: e.target.value ? Number(e.target.value) : undefined }))}
+            aria-label="Filter by max fee"
+          >
+            <option value="">Any Fee</option>
+            {FEE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
+      {/* Sort + count bar */}
       <div className="sort-bar">
+        <span className="result-count-inline">
+          {isLoading ? 'Searching...' : `${doctors?.length ?? 0} doctor${doctors?.length !== 1 ? 's' : ''} found`}
+        </span>
         <select
+          className="sort-select"
           value={`${filters.sortBy}-${filters.sortOrder}`}
           onChange={(e) => {
             const [by, order] = e.target.value.split('-');
             setFilters((f) => ({ ...f, sortBy: by as any, sortOrder: order as any }));
           }}
+          aria-label="Sort doctors"
         >
           <option value="rating-desc">Highest Rated</option>
           <option value="fee-asc">Lowest Fee</option>
@@ -259,9 +405,10 @@ function SearchContent() {
         </select>
       </div>
 
+      {/* Results */}
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '60px', color: theme.colors.textMuted }}>
-          Finding doctors...
+        <div className="skeleton-grid">
+          {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton-card" />)}
         </div>
       ) : doctors && doctors.length > 0 ? (
         <div className="results">
@@ -273,7 +420,10 @@ function SearchContent() {
         <div className="no-results">
           <div className="emoji">🔍</div>
           <h3>No doctors found</h3>
-          <p>Try adjusting your filters or search for a different specialty</p>
+          <p>Try adjusting your filters or searching for a different specialty</p>
+          {hasActiveFilters && (
+            <button className="reset-btn" onClick={clearFilters}>Clear all filters</button>
+          )}
         </div>
       )}
     </div>
@@ -282,7 +432,11 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
+    <Suspense fallback={
+      <div style={{ padding: '40px 16px', textAlign: 'center', color: theme.colors.textMuted }}>
+        Loading...
+      </div>
+    }>
       <SearchContent />
     </Suspense>
   );

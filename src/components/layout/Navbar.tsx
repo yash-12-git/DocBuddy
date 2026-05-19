@@ -13,220 +13,327 @@ const navStyles = css`
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
+  height: 56px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid ${theme.colors.border};
 
   .nav-inner {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 ${theme.spacing.base};
+    padding: 0 16px;
     height: 56px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: ${theme.spacing.md};
+    gap: 12px;
   }
 
+  /* ─── Logo ─── */
   .logo {
     display: flex;
     align-items: center;
-    gap: ${theme.spacing.sm};
+    gap: 8px;
     text-decoration: none;
     font-family: ${theme.fonts.heading};
-    font-weight: 700;
-    font-size: ${theme.fontSizes.lg};
+    font-weight: 800;
+    font-size: 18px;
     color: ${theme.colors.primary};
     flex-shrink: 0;
+    letter-spacing: -0.3px;
 
     .logo-icon {
-      width: 28px; height: 28px;
+      width: 30px; height: 30px;
       background: ${theme.colors.primary};
-      border-radius: ${theme.radii.sm};
+      border-radius: 8px;
       display: flex; align-items: center; justify-content: center;
-      color: white; font-size: 16px;
+      color: white; font-size: 17px; font-weight: 700;
+      box-shadow: 0 2px 8px ${theme.colors.primary}40;
     }
   }
 
-  /* Desktop nav actions */
-  .nav-actions {
+  /* ─── Desktop nav ─── */
+  .nav-center {
     display: flex;
     align-items: center;
-    gap: ${theme.spacing.sm};
+    gap: 4px;
+    flex: 1;
+    max-width: 420px;
   }
 
   .nav-link {
     color: ${theme.colors.textSecondary};
     text-decoration: none;
-    font-size: ${theme.fontSizes.sm};
+    font-size: 14px;
     font-weight: 500;
-    padding: 6px 12px;
-    border-radius: ${theme.radii.md};
-    transition: all var(--transition-fast);
+    padding: 7px 14px;
+    border-radius: 8px;
+    transition: all 0.15s ease;
     white-space: nowrap;
-    &:hover { color: ${theme.colors.primary}; background: ${theme.colors.primaryBg}; }
+    &:hover {
+      color: ${theme.colors.primary};
+      background: ${theme.colors.primaryBg};
+    }
+  }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
   }
 
   .cart-btn {
     position: relative;
-    display: flex; align-items: center; gap: 4px;
+    display: flex; align-items: center; gap: 6px;
     background: none;
     border: 1.5px solid ${theme.colors.border};
-    border-radius: ${theme.radii.full};
-    padding: 6px 12px;
-    font-size: ${theme.fontSizes.sm};
+    border-radius: 100px;
+    padding: 7px 14px;
+    font-size: 13px; font-weight: 500;
     color: ${theme.colors.text};
-    transition: all var(--transition-fast);
-    &:hover { border-color: ${theme.colors.primary}; color: ${theme.colors.primary}; }
+    transition: all 0.15s ease;
+    cursor: pointer;
+    white-space: nowrap;
+
+    &:hover {
+      border-color: ${theme.colors.primary};
+      color: ${theme.colors.primary};
+      background: ${theme.colors.primaryBg};
+    }
 
     .badge {
-      position: absolute; top: -4px; right: -4px;
+      position: absolute; top: -5px; right: -5px;
       background: ${theme.colors.accent}; color: white;
       font-size: 10px; font-weight: 700;
-      width: 18px; height: 18px;
-      border-radius: 50%;
+      min-width: 18px; height: 18px;
+      border-radius: 100px;
       display: flex; align-items: center; justify-content: center;
+      padding: 0 4px;
+      border: 2px solid white;
     }
   }
 
   .auth-btn {
     background: ${theme.colors.primary}; color: white;
-    border: none; border-radius: ${theme.radii.full};
-    padding: 7px 18px;
-    font-size: ${theme.fontSizes.sm}; font-weight: 600;
-    transition: all var(--transition-fast);
+    border: none; border-radius: 100px;
+    padding: 8px 20px;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
     &:hover { background: ${theme.colors.primaryDark}; }
   }
 
-  .user-menu {
-    position: relative;
-    display: flex; align-items: center; gap: 6px;
-    padding: 4px 10px 4px 4px;
-    border-radius: ${theme.radii.full};
+  /* ─── Desktop user menu ─── */
+  .user-menu-wrap { position: relative; }
+
+  .user-menu-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 12px 5px 5px;
+    border-radius: 100px;
     border: 1.5px solid ${theme.colors.border};
     background: none;
-    font-size: ${theme.fontSizes.sm};
+    font-size: 13px; font-weight: 500;
     color: ${theme.colors.text};
-    transition: all var(--transition-fast);
-    &:hover { border-color: ${theme.colors.primary}; }
+    cursor: pointer;
+    transition: all 0.15s ease;
+    &:hover { border-color: ${theme.colors.primary}; background: ${theme.colors.primaryBg}; }
 
     .avatar {
-      width: 26px; height: 26px;
+      width: 28px; height: 28px;
       border-radius: 50%;
       background: ${theme.colors.primaryBg};
       color: ${theme.colors.primary};
       display: flex; align-items: center; justify-content: center;
       font-weight: 700; font-size: 11px;
     }
+    .user-name {
+      max-width: 100px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .chevron {
+      font-size: 10px; color: ${theme.colors.textMuted};
+      transition: transform 0.15s ease;
+    }
   }
 
   .dropdown {
-    position: absolute; top: calc(100% + 8px); right: 0;
+    position: absolute; top: calc(100% + 10px); right: 0;
     background: white;
-    border-radius: ${theme.radii.lg};
-    box-shadow: ${theme.shadows.xl};
+    border-radius: 14px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
     border: 1px solid ${theme.colors.border};
-    padding: 6px; min-width: 200px; z-index: 200;
+    padding: 6px; min-width: 210px; z-index: 200;
 
-    a, button {
-      display: block; width: 100%; text-align: left;
-      padding: 10px 14px; border: none; background: none;
-      font-size: ${theme.fontSizes.sm}; color: ${theme.colors.text};
-      text-decoration: none; border-radius: ${theme.radii.md};
-      &:hover { background: ${theme.colors.bgSecondary}; color: ${theme.colors.primary}; }
+    .dropdown-header {
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid ${theme.colors.borderLight};
+      margin-bottom: 4px;
+      .dropdown-name { font-weight: 600; font-size: 13px; color: ${theme.colors.text}; }
+      .dropdown-role { font-size: 11px; color: ${theme.colors.textMuted}; margin-top: 1px; }
     }
-    .divider { height: 1px; background: ${theme.colors.border}; margin: 4px 0; }
+
+    a, .dropdown-btn {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; text-align: left;
+      padding: 9px 12px; border: none; background: none;
+      font-size: 13px; color: ${theme.colors.text};
+      text-decoration: none; border-radius: 8px;
+      cursor: pointer; transition: all 0.12s ease;
+      .item-icon { font-size: 15px; width: 20px; text-align: center; }
+      &:hover { background: ${theme.colors.bgSecondary}; color: ${theme.colors.primary}; }
+      &.danger { color: ${theme.colors.error}; &:hover { background: #FFF0F0; } }
+    }
+    .divider { height: 1px; background: ${theme.colors.borderLight}; margin: 4px 0; }
   }
 
-  /* Mobile hamburger */
+  /* ─── Hamburger: always inline-flex, visibility controlled by JS via inline style ─── */
   .hamburger {
-    display: none;
-    width: 36px; height: 36px;
-    background: none; border: none;
-    flex-direction: column; justify-content: center; align-items: center; gap: 5px;
+    width: 40px; height: 40px;
+    background: none;
+    border: 1.5px solid ${theme.colors.border};
+    border-radius: 10px;
+    display: flex;           /* always flex — parent (mobile-right) is hidden on desktop */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+
+    &:hover { border-color: ${theme.colors.primary}; background: ${theme.colors.primaryBg}; }
 
     span {
-      display: block; width: 20px; height: 2px;
+      display: block; width: 18px; height: 2px;
       background: ${theme.colors.text};
       border-radius: 2px;
-      transition: all var(--transition-fast);
+      transition: all 0.2s ease;
+      transform-origin: center;
     }
 
-    &.open span:nth-of-type(1) { transform: rotate(45deg) translate(5px, 5px); }
-    &.open span:nth-of-type(2) { opacity: 0; }
-    &.open span:nth-of-type(3) { transform: rotate(-45deg) translate(5px, -5px); }
+    &.open {
+      border-color: ${theme.colors.primary};
+      background: ${theme.colors.primaryBg};
+      span:nth-of-type(1) { transform: rotate(45deg) translate(5px, 5px); background: ${theme.colors.primary}; }
+      span:nth-of-type(2) { opacity: 0; transform: scaleX(0); }
+      span:nth-of-type(3) { transform: rotate(-45deg) translate(5px, -5px); background: ${theme.colors.primary}; }
+    }
   }
 
-  /* Mobile menu overlay */
+  /* ─── Mobile menu overlay (display toggled via inline style in JSX) ─── */
   .mobile-menu {
-    display: none;
     position: fixed;
+    height: 100vh;
     top: 56px; left: 0; right: 0; bottom: 0;
     background: white;
     z-index: 150;
-    padding: ${theme.spacing.lg};
     overflow-y: auto;
-    animation: slideDown 200ms ease;
+    -webkit-overflow-scrolling: touch;
+    animation: slideDown 180ms ease;
 
     @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
-    .mobile-nav-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 14px 0;
+    .mobile-menu-inner {
+      padding: 8px 16px 40px;
+    }
+
+    .mobile-user-info {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 8px 14px;
       border-bottom: 1px solid ${theme.colors.borderLight};
-      font-size: ${theme.fontSizes.md}; font-weight: 500;
-      color: ${theme.colors.text}; text-decoration: none;
+      margin-bottom: 4px;
+
+      .big-avatar {
+        width: 44px; height: 44px; border-radius: 50%;
+        background: ${theme.colors.primaryBg}; color: ${theme.colors.primary};
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 15px; flex-shrink: 0;
+      }
+      .name { font-weight: 600; font-size: 15px; color: ${theme.colors.text}; }
+      .role { font-size: 12px; color: ${theme.colors.textMuted}; margin-top: 2px; }
     }
 
     .mobile-section-label {
-      font-size: ${theme.fontSizes.xs}; font-weight: 600;
+      font-size: 11px; font-weight: 600;
       color: ${theme.colors.textMuted}; text-transform: uppercase;
-      letter-spacing: 0.5px; margin-top: ${theme.spacing.lg};
-      margin-bottom: ${theme.spacing.sm};
+      letter-spacing: 0.6px; padding: 16px 8px 6px;
     }
 
-    .mobile-auth-btn {
-      width: 100%; margin-top: ${theme.spacing.lg};
-      padding: 14px; background: ${theme.colors.primary};
-      color: white; border: none; border-radius: ${theme.radii.md};
-      font-size: ${theme.fontSizes.md}; font-weight: 600;
+    .mobile-nav-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 13px 8px; border-radius: 12px;
+      font-size: 15px; font-weight: 500;
+      color: ${theme.colors.text}; text-decoration: none;
+      cursor: pointer; transition: all 0.12s ease;
+      border: none; background: none; width: 100%; text-align: left;
+      -webkit-tap-highlight-color: transparent;
+
+      .item-icon { font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; }
+      .item-label { flex: 1; }
+      .item-arrow { font-size: 14px; color: ${theme.colors.textMuted}; }
+
+      &:active { background: ${theme.colors.primaryBg}; color: ${theme.colors.primary}; }
     }
+
+    .mobile-divider { height: 1px; background: ${theme.colors.borderLight}; margin: 6px 0; }
 
     .mobile-signout {
-      width: 100%; margin-top: ${theme.spacing.base};
-      padding: 14px; background: white;
-      color: ${theme.colors.error}; border: 1.5px solid ${theme.colors.error};
-      border-radius: ${theme.radii.md}; font-size: ${theme.fontSizes.sm}; font-weight: 600;
+      display: flex; align-items: center; gap: 14px;
+      width: 100%; text-align: left; padding: 13px 8px;
+      border-radius: 12px; border: none; background: none;
+      font-size: 15px; font-weight: 500;
+      color: ${theme.colors.error}; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      .item-icon { font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; }
+      &:active { background: #FFF0F0; }
+    }
+
+    .mobile-auth-section {
+      padding: 16px 0 8px;
+
+      .mobile-sign-in-btn {
+        width: 100%; padding: 15px;
+        background: ${theme.colors.primary}; color: white;
+        border: none; border-radius: 14px;
+        font-size: 16px; font-weight: 600;
+        cursor: pointer;
+        &:active { background: ${theme.colors.primaryDark}; }
+      }
+      .sub { text-align: center; font-size: 12px; color: ${theme.colors.textMuted}; margin-top: 8px; }
     }
   }
 
-  /* Responsive */
+  /* ─── Responsive: only hide/show wrappers, NOT individual buttons ─── */
   @media (max-width: 767px) {
-    .desktop-only { display: none !important; }
-    .hamburger { display: flex; }
-    .mobile-menu.open { display: block; }
+    .desktop-nav-center,
+    .desktop-nav-right { display: none !important; }
   }
 
   @media (min-width: 768px) {
-    .nav-inner { height: 64px; padding: 0 ${theme.spacing.lg}; }
-    .logo { font-size: ${theme.fontSizes.xl}; }
-    .hamburger { display: none !important; }
-    .mobile-menu { display: none !important; }
+    height: 64px;
+    .mobile-nav-right { display: none !important; }
+    .nav-inner { height: 64px; padding: 0 32px; }
+    .logo { font-size: 20px; }
+    .logo .logo-icon { width: 34px; height: 34px; }
   }
 `;
 
 export default function Navbar() {
-  const { user, profile, role, signOut, isAdmin, isDoctor } = useAuth();
+  const { user, profile, signOut, isAdmin, isDoctor } = useAuth();
   const { itemCount, toggleCart } = useCart();
   const [showDropdown, setShowDropdown] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
+  // Close desktop dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -237,56 +344,91 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Close mobile menu on route change
-  useEffect(() => { setMobileOpen(false); }, []);
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
 
   const initials = (profile?.displayName || 'U')
     .split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+  const firstName = profile?.displayName?.split(' ')[0] || 'User';
+  const roleLabel = isAdmin ? 'Admin' : isDoctor ? 'Doctor' : 'Patient';
 
-  const handleNavigate = (path: string) => {
+  const navigate = (path: string) => {
     setShowDropdown(false);
     setMobileOpen(false);
     router.push(path);
   };
 
+  const handleSignOut = async () => {
+    setShowDropdown(false);
+    setMobileOpen(false);
+    await signOut();
+    router.push('/');
+  };
+
   return (
     <nav css={navStyles}>
       <div className="nav-inner">
+        {/* Logo */}
         <Link href="/" className="logo">
           <span className="logo-icon">+</span>
           DoctorHub
         </Link>
 
-        {/* Desktop navigation */}
-        <div className="nav-actions desktop-only">
+        {/* Desktop: center links — hidden on mobile via .desktop-nav-center */}
+        <div className="nav-center desktop-nav-center">
           <Link href="/search" className="nav-link">Find Doctors</Link>
+        </div>
 
+        {/* Desktop: right actions — hidden on mobile via .desktop-nav-right */}
+        <div className="nav-right desktop-nav-right">
           {user && (
-            <button className="cart-btn" onClick={toggleCart}>
+            <button className="cart-btn" onClick={toggleCart} aria-label={`Cart, ${itemCount} items`}>
               🛒 Cart
               {itemCount > 0 && <span className="badge">{itemCount}</span>}
             </button>
           )}
-
           {!user ? (
             <button className="auth-btn" onClick={() => router.push('/login')}>Sign In</button>
           ) : (
-            <div style={{ position: 'relative' }} ref={dropdownRef}>
-              <button className="user-menu" onClick={() => setShowDropdown(!showDropdown)}>
+            <div className="user-menu-wrap" ref={dropdownRef}>
+              <button
+                className="user-menu-btn"
+                onClick={() => setShowDropdown(v => !v)}
+                aria-expanded={showDropdown}
+              >
                 <span className="avatar">{initials}</span>
-                <span className="hide-mobile">{profile?.displayName?.split(' ')[0] || 'User'}</span>
+                <span className="user-name">{firstName}</span>
+                <span className="chevron" style={{ transform: showDropdown ? 'rotate(180deg)' : undefined }}>▼</span>
               </button>
-
               {showDropdown && (
                 <div className="dropdown">
-                  <Link href="/bookings" onClick={() => setShowDropdown(false)}>📋 My Bookings</Link>
-                  <Link href="/profile" onClick={() => setShowDropdown(false)}>👤 Profile</Link>
+                  <div className="dropdown-header">
+                    <div className="dropdown-name">{profile?.displayName || 'User'}</div>
+                    <div className="dropdown-role">{roleLabel}</div>
+                  </div>
+                  <Link href="/bookings" onClick={() => setShowDropdown(false)}>
+                    <span className="item-icon">📋</span> My Bookings
+                  </Link>
+                  <Link href="/profile" onClick={() => setShowDropdown(false)}>
+                    <span className="item-icon">👤</span> Profile
+                  </Link>
                   {(isDoctor || isAdmin) && <div className="divider" />}
-                  {isDoctor && <Link href="/portal/dashboard" onClick={() => setShowDropdown(false)}>🩺 Doctor Portal</Link>}
-                  {isAdmin && <Link href="/admin/dashboard" onClick={() => setShowDropdown(false)}>🛡 Admin Panel</Link>}
+                  {isDoctor && (
+                    <Link href="/portal/dashboard" onClick={() => setShowDropdown(false)}>
+                      <span className="item-icon">🩺</span> Doctor Portal
+                    </Link>
+                  )}
+                  {isAdmin && (
+                    <Link href="/admin/dashboard" onClick={() => setShowDropdown(false)}>
+                      <span className="item-icon">🛡</span> Admin Panel
+                    </Link>
+                  )}
                   <div className="divider" />
-                  <button onClick={async () => { setShowDropdown(false); await signOut(); router.push('/'); }}>
-                    Sign Out
+                  <button className="dropdown-btn danger" onClick={handleSignOut}>
+                    <span className="item-icon">🚪</span> Sign Out
                   </button>
                 </div>
               )}
@@ -294,47 +436,101 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile: cart + hamburger */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} className="mobile-only">
+        {/* Mobile: cart + hamburger — hidden on desktop via .mobile-nav-right */}
+        <div className="nav-right mobile-nav-right">
           {user && (
-            <button className="cart-btn" onClick={toggleCart} style={{ display: 'flex' }}>
+            <button
+              className="cart-btn"
+              onClick={toggleCart}
+              style={{ padding: '7px 10px' }}
+              aria-label={`Cart, ${itemCount} items`}
+            >
               🛒
               {itemCount > 0 && <span className="badge">{itemCount}</span>}
             </button>
           )}
-          <button className={`hamburger ${mobileOpen ? 'open' : ''}`} onClick={() => setMobileOpen(!mobileOpen)}>
+          <button
+            className={`hamburger${mobileOpen ? ' open' : ''}`}
+            onClick={() => setMobileOpen(v => !v)}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            type="button"
+          >
             <span /><span /><span />
           </button>
         </div>
       </div>
 
-      {/* Mobile slide-down menu */}
-      <div className={`mobile-menu ${mobileOpen ? 'open' : ''}`}>
-        <a className="mobile-nav-item" onClick={() => handleNavigate('/search')}>🔍 Find Doctors</a>
-
-        {user ? (
-          <>
-            <a className="mobile-nav-item" onClick={() => handleNavigate('/bookings')}>📋 My Bookings</a>
-            <a className="mobile-nav-item" onClick={() => handleNavigate('/profile')}>👤 Profile</a>
-
-            {(isDoctor || isAdmin) && (
-              <>
-                <div className="mobile-section-label">Manage</div>
-                {isDoctor && <a className="mobile-nav-item" onClick={() => handleNavigate('/portal/dashboard')}>🩺 Doctor Portal</a>}
-                {isAdmin && <a className="mobile-nav-item" onClick={() => handleNavigate('/admin/dashboard')}>🛡 Admin Panel</a>}
-              </>
+      {/* Mobile full-screen menu — display controlled directly via inline style (no CSS class toggling) */}
+      {mobileOpen && (
+        <div className="mobile-menu" role="dialog" aria-modal="true">
+          <div className="mobile-menu-inner">
+            {user && (
+              <div className="mobile-user-info">
+                <div className="big-avatar">{initials}</div>
+                <div>
+                  <div className="name">{profile?.displayName || 'User'}</div>
+                  <div className="role">{roleLabel}</div>
+                </div>
+              </div>
             )}
 
-            <button className="mobile-signout" onClick={async () => { setMobileOpen(false); await signOut(); router.push('/'); }}>
-              Sign Out
+            <div className="mobile-section-label">Navigation</div>
+            <button className="mobile-nav-item" onClick={() => navigate('/search')}>
+              <span className="item-icon">🔍</span>
+              <span className="item-label">Find Doctors</span>
+              <span className="item-arrow">›</span>
             </button>
-          </>
-        ) : (
-          <button className="mobile-auth-btn" onClick={() => handleNavigate('/login')}>
-            Sign In / Register
-          </button>
-        )}
-      </div>
+
+            {user ? (
+              <>
+                <button className="mobile-nav-item" onClick={() => navigate('/bookings')}>
+                  <span className="item-icon">📋</span>
+                  <span className="item-label">My Bookings</span>
+                  <span className="item-arrow">›</span>
+                </button>
+                <button className="mobile-nav-item" onClick={() => navigate('/profile')}>
+                  <span className="item-icon">👤</span>
+                  <span className="item-label">Profile</span>
+                  <span className="item-arrow">›</span>
+                </button>
+
+                {(isDoctor || isAdmin) && (
+                  <>
+                    <div className="mobile-section-label">Manage</div>
+                    {isDoctor && (
+                      <button className="mobile-nav-item" onClick={() => navigate('/portal/dashboard')}>
+                        <span className="item-icon">🩺</span>
+                        <span className="item-label">Doctor Portal</span>
+                        <span className="item-arrow">›</span>
+                      </button>
+                    )}
+                    {isAdmin && (
+                      <button className="mobile-nav-item" onClick={() => navigate('/admin/dashboard')}>
+                        <span className="item-icon">🛡</span>
+                        <span className="item-label">Admin Panel</span>
+                        <span className="item-arrow">›</span>
+                      </button>
+                    )}
+                  </>
+                )}
+
+                <div className="mobile-divider" style={{ marginTop: 12 }} />
+                <button className="mobile-signout" onClick={handleSignOut}>
+                  <span className="item-icon">🚪</span>
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <div className="mobile-auth-section">
+                <button className="mobile-sign-in-btn" onClick={() => navigate('/login')}>
+                  Sign In / Register
+                </button>
+                <p className="sub">Book appointments with top doctors</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
