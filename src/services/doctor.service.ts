@@ -16,6 +16,9 @@ export async function searchDoctors(filters: SearchFilters): Promise<DoctorProfi
   const db = getClientDb();
   const doctorsRef = collection(db, 'doctors');
 
+  console.log(db , doctorsRef, "line19");
+  
+
   // Firestore only allows one range/inequality filter per query.
   // We filter by status + any equality filters in Firestore,
   // then do the remaining filters client-side.
