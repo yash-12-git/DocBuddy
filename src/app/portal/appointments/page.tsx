@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getDoctorAppointments, updateAppointmentStatus } from '@/services/portal.service';
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 const S = css`
@@ -56,14 +57,26 @@ const S = css`
 const TABS = [{ key: 'all', label: 'All' }, { key: 'confirmed', label: 'Confirmed' }, { key: 'completed', label: 'Completed' }, { key: 'cancelled', label: 'Cancelled' }];
 
 export default function AppointmentsPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const router = useRouter();
   const userId = (user as any)?.uid;
   const qc = useQueryClient();
   const [filter, setFilter] = useState('all');
-  const { data: appts, isLoading } = useQuery({ queryKey: ['doctor-appointments', userId, filter], queryFn: () => getDoctorAppointments(userId, filter), enabled: !!userId, staleTime: 15_000 });
+  
+  // For admin, get selected doctor ID from sessionStorage
+  const selectedDoctorId = isAdmin ? (typeof window !== 'undefined' ? sessionStorage.getItem('adminSelectedDoctorId') : null) : null;
+  const doctorId = selectedDoctorId || userId;
+
+  // If admin but no doctor selected, redirect to selector
+  if (isAdmin && !selectedDoctorId && typeof window !== 'undefined') {
+    router.push('/portal/select-doctor');
+    return null;
+  }
+
+  const { data: appts, isLoading } = useQuery({ queryKey: ['doctor-appointments', doctorId, filter], queryFn: () => getDoctorAppointments(doctorId, filter), enabled: !!doctorId, staleTime: 15_000 });
 
   const handleStatus = async (id: string, status: string) => {
-    await updateAppointmentStatus(id, status, userId);
+    await updateAppointmentStatus(id, status, doctorId);
     qc.invalidateQueries({ queryKey: ['doctor-appointments'] });
     qc.invalidateQueries({ queryKey: ['doctor-stats'] });
   };

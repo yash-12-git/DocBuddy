@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getDoctorStats } from '@/services/portal.service';
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 
 const S = css`
   h1 { font-family: ${theme.fonts.heading}; font-size: ${theme.fontSizes.xl}; font-weight: 700; margin-bottom: ${theme.spacing.lg};
@@ -48,8 +49,19 @@ const S = css`
 `;
 
 export default function DoctorDashboard() {
-  const { user } = useAuth();
-  const userId = (user as any)?.uid;
+  const { user, isAdmin } = useAuth();
+  const router = useRouter();
+  
+  // For admin, get selected doctor ID from sessionStorage
+  const selectedDoctorId = isAdmin ? (typeof window !== 'undefined' ? sessionStorage.getItem('adminSelectedDoctorId') : null) : null;
+  const userId = selectedDoctorId || (user as any)?.uid;
+
+  // If admin but no doctor selected, redirect to selector
+  if (isAdmin && !selectedDoctorId && typeof window !== 'undefined') {
+    router.push('/portal/select-doctor');
+    return null;
+  }
+
   const { data: stats, isLoading } = useQuery({ queryKey: ['doctor-stats', userId], queryFn: () => getDoctorStats(userId), enabled: !!userId, staleTime: 30_000 });
 
   return (

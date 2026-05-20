@@ -105,6 +105,11 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // If admin visits portal root, redirect to selector
+  if (!loading && isAdmin && !isDoctor && pathname === '/portal') {
+    router.push('/portal/select-doctor');
+  }
+
   // Loading
   if (loading) {
     return (

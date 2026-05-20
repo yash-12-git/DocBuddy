@@ -81,6 +81,7 @@ const S = css`
       &.approve { background: ${theme.colors.success}; color: white; }
       &.suspend { background: white; color: ${theme.colors.error}; border: 1px solid rgba(239,68,68,0.3); }
       &.reinstate { background: ${theme.colors.info}; color: white; }
+      &.edit { background: ${theme.colors.infoBg}; color: ${theme.colors.info}; border: 1px solid ${theme.colors.info}; }
       &:disabled { opacity: 0.5; }
     }
   }
@@ -164,9 +165,14 @@ export default function AdminDoctorsPage() {
                     </button>
                   )}
                   {doc.status === 'approved' && (
-                    <button className="action-btn suspend" onClick={() => handleAction('suspend', doc.uid)} disabled={loading}>
-                      {loading ? '...' : 'Suspend'}
-                    </button>
+                    <>
+                      <button className="action-btn edit" onClick={() => router.push(`/admin/doctors/${doc.uid}`)} disabled={loading}>
+                        ✏️ Edit
+                      </button>
+                      <button className="action-btn suspend" onClick={() => handleAction('suspend', doc.uid)} disabled={loading}>
+                        {loading ? '...' : 'Suspend'}
+                      </button>
+                    </>
                   )}
                   {doc.status === 'suspended' && (
                     <button className="action-btn approve" onClick={() => handleAction('approve', doc.uid)} disabled={loading}>
