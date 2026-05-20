@@ -7,11 +7,34 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getAllDoctors, approveDoctor, suspendDoctor } from '@/services/admin.service';
 import { formatCurrency } from '@/lib/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 const S = css`
   h1 { font-family: ${theme.fonts.heading}; font-size: ${theme.fontSizes.xl}; font-weight: 700; margin-bottom: ${theme.spacing.lg};
     @media (min-width: 768px) { font-size: ${theme.fontSizes['2xl']}; margin-bottom: ${theme.spacing.xl}; } }
+
+  .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: ${theme.spacing.lg};
+    flex-wrap: wrap;
+    gap: ${theme.spacing.md};
+
+    .onboard-btn {
+      padding: 10px 20px;
+      background: ${theme.colors.primary};
+      color: white;
+      border: none;
+      border-radius: ${theme.radii.md};
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      &:hover { background: ${theme.colors.primaryDark}; }
+    }
+  }
 
   .tabs { display: flex; gap: 4px; margin-bottom: ${theme.spacing.lg}; background: ${theme.colors.bgSecondary};
     border-radius: ${theme.radii.md}; padding: 3px; overflow-x: auto; width: fit-content;
@@ -74,6 +97,7 @@ const TABS = [
 
 export default function AdminDoctorsPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const qc = useQueryClient();
   const [filter, setFilter] = useState('all');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -101,7 +125,12 @@ export default function AdminDoctorsPage() {
 
   return (
     <div css={S}>
-      <h1>Doctor Management</h1>
+      <div className="header-row">
+        <h1>Doctor Management</h1>
+        <button className="onboard-btn" onClick={() => router.push('/admin/onboard-doctor')}>
+          + Onboard New Doctor
+        </button>
+      </div>
       <div className="tabs">
         {TABS.map(t => (
           <button key={t.key} className={filter === t.key ? 'active' : ''} onClick={() => setFilter(t.key)}>

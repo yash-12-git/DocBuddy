@@ -12,7 +12,7 @@ import {
   User as FirebaseUser,
 } from 'firebase/auth';
 import {
-  doc, getDoc, setDoc, updateDoc, Timestamp,
+  doc, getDoc, setDoc, updateDoc, Timestamp, collection, query, where, limit, getDocs,
 } from 'firebase/firestore';
 import { getClientAuth, getClientDb } from '@/lib/firebase/client';
 import { UserRole, UserProfile } from '@/types';
@@ -52,6 +52,32 @@ async function fetchOrCreateUserProfile(
     const existing = userSnap.data() as UserProfile;
     await updateDoc(userRef, { updatedAt: Timestamp.now() });
     return existing;
+  }
+
+  // Check if a user doc exists with this email (pre-created during onboarding)
+  if (firebaseUser.email) {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('email', '==', firebaseUser.email), limit(1));
+    const snapshot = await getDocs(q);
+    
+    if (!snapshot.empty) {
+      const existingDoc = snapshot.docs[0];
+      const existingData = existingDoc.data() as UserProfile;
+      
+      // Migrate the pre-created profile to the new Firebase Auth UID
+      const migratedProfile: UserProfile = {
+        ...existingData,
+        uid: firebaseUser.uid,
+        displayName: firebaseUser.displayName || existingData.displayName,
+        photoURL: firebaseUser.photoURL || existingData.photoURL,
+        updatedAt: Timestamp.now(),
+      };
+      
+      // Create the new doc and optionally delete the old one
+      await setDoc(userRef, migratedProfile);
+      
+      return migratedProfile;
+    }
   }
 
   // New user — create Firestore profile

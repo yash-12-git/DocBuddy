@@ -49,32 +49,119 @@ const S = css`
     @media (min-width: 768px) { padding: ${theme.spacing.xl} ${theme.spacing['2xl']}; max-width: 1200px; }
   }
 
-  .auth-gate { display: flex; align-items: center; justify-content: center; flex: 1;
-    text-align: center; padding: ${theme.spacing['2xl']};
-    h2 { font-size: ${theme.fontSizes.xl}; margin-bottom: ${theme.spacing.md}; }
-    p { color: ${theme.colors.textSecondary}; margin-bottom: ${theme.spacing.lg}; }
-    .cta { padding: 12px 28px; background: ${theme.colors.primary}; color: white; border: none; border-radius: ${theme.radii.md}; font-weight: 600; }
+  .gate-screen {
+    display: flex; align-items: center; justify-content: center; flex: 1;
+    min-height: calc(100dvh - 56px);
+    @media (min-width: 768px) { min-height: calc(100vh - 64px); }
+  }
+
+  .gate-card {
+    text-align: center; padding: ${theme.spacing['2xl']} ${theme.spacing.lg};
+    max-width: 420px;
+
+    .gate-icon {
+      width: 72px; height: 72px; border-radius: 50%; margin: 0 auto ${theme.spacing.lg};
+      display: flex; align-items: center; justify-content: center; font-size: 32px;
+    }
+    .gate-icon.denied { background: ${theme.colors.errorBg}; }
+    .gate-icon.login { background: ${theme.colors.primaryBg}; }
+
+    h2 {
+      font-family: ${theme.fonts.heading}; font-size: ${theme.fontSizes.xl};
+      font-weight: 700; margin-bottom: ${theme.spacing.sm};
+    }
+
+    p { color: ${theme.colors.textSecondary}; font-size: ${theme.fontSizes.sm};
+      line-height: 1.6; margin-bottom: ${theme.spacing.xl}; }
+
+    .gate-btn {
+      display: inline-block; padding: 12px 28px;
+      border-radius: ${theme.radii.md}; font-weight: 600; font-size: ${theme.fontSizes.sm};
+      border: none; cursor: pointer; transition: all 0.15s ease;
+      text-decoration: none;
+    }
+    .gate-btn.primary { background: ${theme.colors.primary}; color: white;
+      &:hover { background: ${theme.colors.primaryDark}; }
+    }
+    .gate-btn.secondary { background: ${theme.colors.bgSecondary}; color: ${theme.colors.text};
+      margin-left: 8px;
+      &:hover { background: ${theme.colors.bgTertiary}; }
+    }
   }
 `;
 
 const NAV = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
   { href: '/admin/doctors', label: 'Doctors', icon: '🩺' },
+  { href: '/admin/onboard-doctor', label: 'Onboard Doctor', icon: '➕' },
   { href: '/admin/orders', label: 'Orders', icon: '📋' },
   { href: '/admin/users', label: 'Users', icon: '👥' },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  if (loading) return <div css={S}><div className="auth-gate"><p>Loading...</p></div></div>;
-  if (!user) return <div css={S}><div className="auth-gate"><div><h2>🛡 Admin Panel</h2><p>Sign in to access admin dashboard</p><button className="cta" onClick={() => router.push('/login')}>Sign In</button></div></div></div>;
+
+  // Loading
+  if (loading) {
+    return (
+      <div css={S}>
+        <div className="gate-screen">
+          <div className="gate-card">
+            <p>Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Not logged in
+  if (!user) {
+    return (
+      <div css={S}>
+        <div className="gate-screen">
+          <div className="gate-card">
+            <div className="gate-icon login">🔒</div>
+            <h2>Admin Panel</h2>
+            <p>You need to sign in to access this page.</p>
+            <button className="gate-btn primary" onClick={() => router.push('/login')}>Sign In</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Logged in but NOT admin → Access Denied
+  if (!isAdmin) {
+    return (
+      <div css={S}>
+        <div className="gate-screen">
+          <div className="gate-card">
+            <div className="gate-icon denied">🚫</div>
+            <h2>Access Denied</h2>
+            <p>
+              This area is restricted to administrators only.
+              Your current role does not have permission to access the admin panel.
+            </p>
+            <button className="gate-btn primary" onClick={() => router.push('/')}>Go Home</button>
+            <button className="gate-btn secondary" onClick={() => router.back()}>Go Back</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Admin → render the dashboard
   return (
     <div css={S}>
       <nav className="sidebar">
         <div className="sidebar-header"><h2>🛡 Admin</h2><p>{user.email}</p></div>
-        {NAV.map(n => <Link key={n.href} href={n.href} className={`nav-item ${pathname === n.href ? 'active' : ''}`}>{n.icon} {n.label}</Link>)}
+        {NAV.map(n => (
+          <Link key={n.href} href={n.href} className={`nav-item ${pathname === n.href ? 'active' : ''}`}>
+            {n.icon} {n.label}
+          </Link>
+        ))}
       </nav>
       <div className="main-content">{children}</div>
     </div>
